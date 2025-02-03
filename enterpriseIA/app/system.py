@@ -13,8 +13,16 @@ from databaseHandler import (
     insert_response,
     insert_audit_log,
     get_all_audit_logs,
-    get_all_permissions  
+    get_all_permissions,
+    add_user_permission,
+    remove_user_permission,
+    get_user_permissions,
+    get_users_by_username,
+    insert_model, get_all_models, remove_model  
 )
+from databaseHandler import create_role, get_role_by_name, get_all_permissions
+from databaseHandler import insert_audit_log  # Assuming you have an audit log function
+
 from .modules.filter_module import FilterModule
 from .modules.access_control import AccessControl
 from .modules.audit_module import AuditModule
@@ -52,7 +60,7 @@ class System:
                 existing_role = get_role_by_name(rn)
             assign_role_to_user(user_id, existing_role[0])
         return user_id
-
+    
     def ensure_use_ia_permission_exists():
         existing_perm = get_permission_by_name("USE_IA")
         if not existing_perm:
@@ -82,6 +90,31 @@ class System:
     # --------------------------------------------------------------------------
     # ROLE AND PERMISSION MANAGEMENT
     # --------------------------------------------------------------------------
+    def addPermissionToUser(self, acting_user, target_user_id, permission_id):
+        if not self.access_control.user_has_permission(acting_user, "CONFIGURE_SYSTEM"):
+            return "Permission denied: user cannot assign permissions."
+        result = add_user_permission(target_user_id, permission_id)
+        if result:
+            insert_audit_log(acting_user.user_id, "ADD_USER_PERMISSION", f"Assigned permission {permission_id} to user {target_user_id}")
+            return f"Permission {permission_id} assigned to user {target_user_id}."
+        else:
+            return "Failed to assign permission."
+
+    def removePermissionFromUser(self, acting_user, target_user_id, permission_id):
+        if not self.access_control.user_has_permission(acting_user, "CONFIGURE_SYSTEM"):
+            return "Permission denied: user cannot remove permissions."
+        result = remove_user_permission(target_user_id, permission_id)
+        if result is not None:
+            insert_audit_log(acting_user.user_id, "REMOVE_USER_PERMISSION", f"Removed permission {permission_id} from user {target_user_id}")
+            return f"Permission {permission_id} removed from user {target_user_id}."
+        else:
+            return "Failed to remove permission."
+
+    def getUserPermissions(self, target_user_id):
+        return get_user_permissions(target_user_id)
+
+    def searchUsers(self, query_str):
+        return get_users_by_username(query_str)
     def createRole(self, user, role_name: str, description: str = ""):
         if not self._canManageRoles(user):
             return "Permission denied: user cannot manage roles."
@@ -217,15 +250,43 @@ class System:
     # --------------------------------------------------------------------------
     # ADMIN HANDLES MODELS
     # --------------------------------------------------------------------------
-    def adminLoadLocalModel(self, user, model_name: str):
+    def adminLoadLocalModel(self, user, model_name: str) -> str:
         if not user or not user.isauthenticate():
             return "Not authenticated."
         if not self.access_control.user_has_permission(user, "CONFIGURE_SYSTEM"):
             return "Permission denied: user cannot configure system."
-        if self.localAI.loadModel(model_name):
+        
+        # Try to load the model locally (via Ollama)
+        loaded = self.localAI.loadModel(model_name)
+        if loaded:
+            # Insert the model name in the DB
+            insert_model(model_name)
             return f"Model '{model_name}' loaded successfully."
         return f"Failed to load model '{model_name}'."
 
+    def adminDeleteLocalModel(self, user, model_id: int, model_name: str) -> str:
+        if not user or not user.isauthenticate():
+            return "Not authenticated."
+        if not self.access_control.user_has_permission(user, "CONFIGURE_SYSTEM"):
+            return "Permission denied: user cannot configure system."
+
+        # If you have a local operation to remove the model from Ollama's store, call it here:
+        # success = self.localAI.deleteModel(model_name)
+
+        # Remove from the DB
+        deleted = remove_model(model_id)
+        if deleted:
+            return f"Model '{model_name}' (ID {model_id}) deleted from database."
+        return f"Unable to delete model '{model_name}' (ID {model_id})."
+
+    def getAllModels(self) -> list:
+        """
+        Retrieves all model entries from the database.
+
+        Returns:
+            list of dict: e.g. [ {'id':1, 'model_name':'llama2', 'created_at':...}, ... ]
+        """
+        return get_all_models()
     def adminSetExternalAPIKey(self, user, new_api_key: str):
         if not user or not user.isauthenticate():
             return "Not authenticated."

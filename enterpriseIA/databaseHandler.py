@@ -267,6 +267,162 @@ def get_role_by_name(name: str):
     result = execute_query(query, params, fetchone=True)
     return result
 
+def add_user_permission(user_id, permission_id):
+    """
+    Assigns a permission to a user.
+    Returns the user_permission record ID if successful.
+    """
+    query = """
+        INSERT INTO user_permissions (user_id, permission_id)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)
+    """
+    params = (user_id, permission_id)
+    execute_query(query, params)
+    
+    # Retrieve the resulting ID
+    conn = get_connection()
+    if conn is None:
+        return None
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT LAST_INSERT_ID() AS id")
+        row = cursor.fetchone()
+        return row[0] if row else None
+    except pymysql.MySQLError as err:
+        print(f"Error retrieving user permission ID: {err}")
+        return None
+    finally:
+        cursor.close()
+        conn.close()
+
+def remove_user_permission(user_id, permission_id):
+    """
+    Removes a permission from a user.
+    Returns the number of affected rows.
+    """
+    query = "DELETE FROM user_permissions WHERE user_id = %s AND permission_id = %s"
+    params = (user_id, permission_id)
+    result = execute_query(query, params, commit=True)
+    # Depending on your execute_query implementation you might want to return a row count.
+    # Here, assume that a non-None result indicates success.
+    return result
+
+def get_user_permissions(user_id):
+    """
+    Retrieves permissions for a given user.
+    Returns a list of tuples: (permission_id, name, description)
+    """
+    query = """
+        SELECT p.id, p.name, p.description
+        FROM permissions p
+        JOIN user_permissions up ON p.id = up.permission_id
+        WHERE up.user_id = %s
+    """
+    params = (user_id,)
+    return execute_query(query, params, fetchall=True)
+
+def get_users_by_username(query_str):
+    """
+    Searches users by username.
+    Returns a list of tuples: (id, username, fullname, department)
+    """
+    query = """
+        SELECT id, username, fullname, department
+        FROM users
+        WHERE username LIKE %s
+    """
+    params = (f"%{query_str}%",)
+    return execute_query(query, params, fetchall=True)
+
+
+def insert_model(model_name: str) -> int:
+    """
+    Inserts a new record into the `models` table.
+
+    Args:
+        model_name (str): Name of the model (e.g., 'llama2').
+
+    Returns:
+        int: The newly inserted model's ID, or None on error.
+    """
+    query = """
+        INSERT INTO models (model_name)
+        VALUES (%s)
+    """
+    params = (model_name,)
+    execute_query(query, params)
+
+    # Retrieve the last inserted ID
+    conn = get_connection()
+    if conn is None:
+        return None
+    cursor = conn.cursor()
+    new_id = None
+    try:
+        cursor.execute("SELECT LAST_INSERT_ID() AS id")
+        row = cursor.fetchone()
+        new_id = row[0] if row else None
+    except pymysql.MySQLError as err:
+        print(f"Error retrieving last inserted model ID: {err}")
+    finally:
+        cursor.close()
+        conn.close()
+    return new_id
+
+def get_all_models() -> list:
+    """
+    Retrieves all rows from the `models` table.
+
+    Returns:
+        list of dict: Each dict contains keys 'id', 'model_name', 'created_at'.
+                      Returns an empty list if no models exist or on error.
+    """
+    query = """
+        SELECT id, model_name, created_at
+        FROM models
+        ORDER BY id ASC
+    """
+    rows = execute_query(query, fetchall=True)
+    if not rows:
+        return []
+    return rows
+
+def remove_model(model_id: int) -> bool:
+    """
+    Deletes a model by ID.
+
+    Args:
+        model_id (int): Primary key of the model record.
+
+    Returns:
+        bool: True if successfully deleted, False otherwise.
+    """
+    query = """
+        DELETE FROM models
+        WHERE id = %s
+    """
+    params = (model_id,)
+    execute_query(query, params)
+
+    # Check how many rows were deleted
+    conn = get_connection()
+    if conn is None:
+        return False
+    cursor = conn.cursor()
+    deleted = False
+    try:
+        cursor.execute("SELECT ROW_COUNT() AS deleted_count")
+        row = cursor.fetchone()
+        if row and len(row) > 0:
+            deleted = True
+    except pymysql.MySQLError as err:
+        print(f"Error checking row count: {err}")
+
+    finally:
+        cursor.close()
+        conn.close()
+    return deleted
 def update_role_description(role_id: int, new_description: str):
     """
     Updates the description of a role.

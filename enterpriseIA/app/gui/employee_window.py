@@ -1,3 +1,4 @@
+# employee_window.py
 import sys
 import os
 from datetime import datetime
@@ -5,131 +6,165 @@ from datetime import datetime
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QComboBox, QTextEdit, QLineEdit, QFileDialog, QMessageBox,
-    QDockWidget, QListWidget, QListWidgetItem, QToolBar, QSizePolicy
+    QDockWidget, QListWidget, QListWidgetItem, QToolBar, QSizePolicy, QFrame
 )
-from PySide6.QtGui import QIcon, QTextCursor, QFont, QPalette, QColor
+from PySide6.QtGui import QIcon, QTextCursor, QFont, QPalette, QColor, QLinearGradient
 from PySide6.QtCore import Qt, QSize
 
 # Import the real System from your backend.
 from ..system import System
 
 class EmployeeChatDashboard(QMainWindow):
-    def __init__(self, system):
+    def __init__(self, system, user=None):
         super().__init__()
         self.system = system
-        
-        # Create a dummy employee user for queries.
-        from ..models.employee import Employee
-        self.employee_user = Employee(user_id=2, username="employee", hashed_password="", fullname="Employee")
+        if user:
+            self.employee_user = user
+        else:
+            # Import your real Employee model as needed
+            from ..models.employee import Employee
+            self.employee_user = Employee(user_id=2, username="employee", hashed_password="", fullname="Employee")
         
         self.setWindowTitle("Employee IA Chat Dashboard")
         self.setGeometry(100, 100, 900, 650)
         self.setMinimumSize(700, 500)
-        # Enable animated docks and nested docking to smoothly adjust the interface.
         self.setDockOptions(QMainWindow.AnimatedDocks | QMainWindow.AllowNestedDocks)
         
-        # Apply dark theme and custom styles.
-        self.apply_dark_theme()
+        self.apply_enhanced_theme()
         
-        # Create the chat history dock BEFORE initializing the main UI.
         self.create_chat_history_dock()
-        # Create a toolbar with a toggle button to show/hide chat history.
         self.create_chat_history_toggle_toolbar()
-        # Create the profile toolbar on the top-right.
         self.create_profile_toolbar()
         
-        # Setup main UI.
         self.init_ui()
     
-    def apply_dark_theme(self):
-        dark_palette = QPalette()
-        dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.WindowText, Qt.white)
-        dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
-        dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
-        dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-        dark_palette.setColor(QPalette.Text, Qt.white)
-        dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        dark_palette.setColor(QPalette.ButtonText, Qt.white)
-        dark_palette.setColor(QPalette.BrightText, Qt.red)
-        dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        dark_palette.setColor(QPalette.HighlightedText, Qt.black)
-        self.setPalette(dark_palette)
+    def apply_enhanced_theme(self):
+        palette = QPalette()
+        background_gradient = QLinearGradient(0, 0, 0, 1)
+        background_gradient.setColorAt(0.0, QColor("#2C3E50"))
+        background_gradient.setColorAt(1.0, QColor("#34495E"))
+        palette.setBrush(QPalette.Window, background_gradient)
+        palette.setColor(QPalette.WindowText, Qt.white)
+        palette.setColor(QPalette.Base, QColor("#1F2A37"))
+        palette.setColor(QPalette.AlternateBase, QColor("#2C3E50"))
+        palette.setColor(QPalette.ToolTipBase, Qt.white)
+        palette.setColor(QPalette.ToolTipText, Qt.white)
+        palette.setColor(QPalette.Text, Qt.white)
+        palette.setColor(QPalette.Button, QColor("#16A085"))
+        palette.setColor(QPalette.ButtonText, Qt.white)
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Highlight, QColor("#1ABC9C"))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
+        self.setPalette(palette)
+        
         self.setStyleSheet("""
-            QMainWindow { background-color: #2C3E50; }
-            QLabel { color: #ECF0F1; font-size: 14px; }
-            QPushButton { 
-                background-color: #1ABC9C; 
-                color: #2C3E50; 
-                border: none; 
-                padding: 8px 16px; 
-                border-radius: 5px; 
-                font-size: 14px; 
+            QMainWindow {
+                background: qlineargradient(
+                    spread:pad,
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2C3E50,
+                    stop:1 #34495E
+                );
+                font-family: 'Helvetica';
             }
-            QPushButton:hover { background-color: #16A085; color: #ECF0F1; }
-            QLineEdit, QTextEdit, QComboBox { 
-                background-color: #34495E; 
-                color: #ECF0F1; 
-                border: 1px solid #1ABC9C; 
-                border-radius: 5px; 
-                padding: 5px; 
-                font-size: 14px; 
+            QLabel {
+                color: #ECF0F1;
+                font-size: 14px;
             }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus { border: 1px solid #1ABC9C; }
-            QTextEdit { font-size: 12px; }
-            QGroupBox { border: 2px solid #1ABC9C; border-radius: 5px; margin-top: 10px; }
-            QGroupBox::title { 
-                subcontrol-origin: margin; 
-                subcontrol-position: top left; 
-                padding: 0 5px; 
-                color: #ECF0F1; 
-                font-size: 16px; 
-                font-weight: bold; 
+            QPushButton {
+                background-color: #16A085;
+                color: #ECF0F1;
+                border: none;
+                padding: 10px 16px;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #1ABC9C;
+                color: #2C3E50;
+            }
+            QLineEdit, QTextEdit, QComboBox {
+                background-color: #1F2A37;
+                color: #ECF0F1;
+                border: 1px solid #16A085;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+            }
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+                border: 1px solid #1ABC9C;
+            }
+            QTextEdit {
+                font-size: 12px;
+            }
+            QGroupBox {
+                border: 2px solid #16A085;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 5px;
+                color: #ECF0F1;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QToolBar {
+                background: transparent;
+                border: none;
+            }
+            QListWidget {
+                background-color: #2C3E50;
+                color: #ECF0F1;
+                border: none;
             }
         """)
-
+    
     def create_chat_history_dock(self):
-        """
-        Create a dockable sidebar to display chat history.
-        """
         self.chat_history_dock = QDockWidget("Chat History", self)
         self.chat_history_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
         self.chat_history_list = QListWidget()
+        self.chat_history_list.setStyleSheet("""
+            QListWidget::item {
+                background-color: #1F2A37;
+                padding: 8px;
+                margin: 4px 0;
+                border-radius: 4px;
+            }
+            QListWidget::item:selected {
+                background-color: #16A085;
+                color: #2C3E50;
+            }
+        """)
         self.chat_history_dock.setWidget(self.chat_history_list)
         self.addDockWidget(Qt.RightDockWidgetArea, self.chat_history_dock)
-        self.chat_history_dock.hide()  # Start hidden
-
+        self.chat_history_dock.hide()
+    
     def create_chat_history_toggle_toolbar(self):
-        """
-        Create a toolbar with a toggle button to show/hide chat history.
-        """
         toolbar = QToolBar("Chat History")
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
-        toolbar.setStyleSheet("QToolBar { background: transparent; border: none; }")
         self.addToolBar(Qt.TopToolBarArea, toolbar)
         toolbar.setIconSize(QSize(30, 30))
-        
         chat_history_btn = QPushButton()
-        history_icon = QIcon("icons/history_icon.png")  # Ensure this icon exists
+        history_icon = QIcon("icons/history_icon.png")
         chat_history_btn.setIcon(history_icon)
-        chat_history_btn.setFixedSize(30, 30)
+        chat_history_btn.setFixedSize(35, 35)
         chat_history_btn.setStyleSheet("""
             QPushButton {
                 border: none;
-                background-color: #1ABC9C;
-                border-radius: 15px;
+                border-radius: 5px;
+                background-color: #16A085;
             }
-            QPushButton:hover { background-color: #16A085; }
+            QPushButton:hover {
+                background-color: #1ABC9C;
+            }
         """)
         chat_history_btn.clicked.connect(self.toggle_chat_history)
         toolbar.addWidget(chat_history_btn)
     
     def toggle_chat_history(self):
-        """
-        Toggle the visibility of the chat history sidebar and ensure it docks.
-        """
         if self.chat_history_dock.isVisible():
             self.chat_history_dock.hide()
         else:
@@ -137,45 +172,76 @@ class EmployeeChatDashboard(QMainWindow):
             self.chat_history_dock.setFloating(False)
     
     def create_profile_toolbar(self):
-        """
-        Add a toolbar at the top-right with a round profile icon.
-        """
         toolbar = QToolBar("Profile")
         toolbar.setMovable(False)
         toolbar.setFloatable(False)
-        toolbar.setStyleSheet("QToolBar { background: transparent; border: none; }")
         self.addToolBar(Qt.TopToolBarArea, toolbar)
         toolbar.setIconSize(QSize(40, 40))
-        
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         toolbar.addWidget(spacer)
-        
         profile_btn = QPushButton()
-        profile_icon = QIcon("icons/profile_icon.png")  # Use a circular image for profile
+        profile_icon = QIcon(".icons/profile_icon.png")
         profile_btn.setIcon(profile_icon)
         profile_btn.setFixedSize(40, 40)
         profile_btn.setStyleSheet("""
             QPushButton {
                 border: none;
                 border-radius: 20px;
+                background-color: #16A085;
+            }
+            QPushButton:hover {
                 background-color: #1ABC9C;
             }
-            QPushButton:hover { background-color: #16A085; }
         """)
         profile_btn.clicked.connect(self.show_profile)
         toolbar.addWidget(profile_btn)
     
+    def show_profile(self):
+        QMessageBox.information(
+            self, "Profile",
+            f"User: {self.employee_user.username}\nFull Name: {self.employee_user.fullname}"
+        )
+    
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        main_layout = QVBoxLayout()
-        central_widget.setLayout(main_layout)
+        main_layout = QVBoxLayout(central_widget)
+        
+        # Header Frame with a gradient background
+        header_frame = QFrame()
+        header_frame.setStyleSheet("""
+            QFrame {
+                background: qlineargradient(
+                    spread:pad,
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #16A085,
+                    stop:1 #1ABC9C
+                );
+                border-radius: 6px;
+                margin: 5px;
+            }
+        """)
+        header_layout = QHBoxLayout(header_frame)
         
         title_label = QLabel("Employee IA Chat Interface")
-        title_label.setFont(QFont("Helvetica", 16, QFont.Bold))
+        title_label.setFont(QFont("Helvetica", 18, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        
+        # Conditionally add a switch button based on user type.
+        if type(self.employee_user).__name__ == "Admin":
+            switch_button = QPushButton("Go to Admin Dashboard")
+            switch_button.clicked.connect(self.go_to_admin)
+            header_layout.addWidget(switch_button)
+        elif type(self.employee_user).__name__ == "DPO":
+            switch_button = QPushButton("Go to DPO Dashboard")
+            switch_button.clicked.connect(self.go_to_dpo)
+            header_layout.addWidget(switch_button)
+        # If a simple employee, no switch button is added.
+        
+        main_layout.addWidget(header_frame)
         
         # IA Service Selection Frame
         ia_frame = QHBoxLayout()
@@ -193,77 +259,98 @@ class EmployeeChatDashboard(QMainWindow):
         # Chat Display
         self.chat_display = QTextEdit()
         self.chat_display.setReadOnly(True)
-        self.chat_display.setStyleSheet("background-color: #34495E;")
         self.chat_display.setFont(QFont("Helvetica", 10))
+        self.chat_display.setStyleSheet("""
+            background-color: #1F2A37;
+            border: 1px solid #16A085;
+            border-radius: 5px;
+            padding: 8px;
+        """)
         main_layout.addWidget(self.chat_display)
         
-        # Combined Message Entry Frame with Attach on Left, Input in Middle, and Send on Right.
+        # Message entry layout
         message_frame = QHBoxLayout()
-        
-        # Attach Button (Left)
         attach_btn = QPushButton()
-        attach_icon = QIcon("icons/upload_icon.png")  # Ensure this icon exists
+        attach_icon = QIcon("icons/upload_icon.png")
         attach_btn.setIcon(attach_icon)
-        attach_btn.setFixedSize(30, 30)
+        attach_btn.setFixedSize(35, 35)
         attach_btn.setStyleSheet("""
             QPushButton {
-                background-color: #1ABC9C;
+                background-color: #16A085;
                 border: none;
                 border-radius: 5px;
-                padding: 5px;
             }
-            QPushButton:hover { background-color: #16A085; }
+            QPushButton:hover {
+                background-color: #1ABC9C;
+            }
         """)
         attach_btn.setToolTip("Attach File")
         attach_btn.clicked.connect(self.upload_file)
         message_frame.addWidget(attach_btn, 0)
         
-        # Message Input Field (Middle)
         self.message_entry = QLineEdit()
         self.message_entry.setPlaceholderText("Type your message here...")
         self.message_entry.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.message_entry.returnPressed.connect(self.send_message)
         message_frame.addWidget(self.message_entry, 1)
         
-        # Send Button (Right)
         send_btn = QPushButton("Send")
+        send_btn.setFixedHeight(35)
         send_btn.clicked.connect(self.send_message)
         message_frame.addWidget(send_btn, 0)
-        
         main_layout.addLayout(message_frame)
         
         self.append_chat_message("System", "Welcome! How can I assist you today?")
     
-    def show_profile(self):
-        QMessageBox.information(self, "Profile", f"User: {self.employee_user.username}\nFull Name: {self.employee_user.fullname}")
+    def go_to_admin(self):
+        from admin_window import AdminDashboard
+        dashboard = AdminDashboard(system=self.system, admin_user=self.employee_user)
+        dashboard.show()
+        self.close()
+    
+    def go_to_dpo(self):
+        from dpo_window import DPODashboard
+        dashboard = DPODashboard(system=self.system, current_user=self.employee_user)
+        dashboard.show()
+        self.close()
     
     def append_chat_message(self, sender: str, message: str):
         self.chat_display.setReadOnly(False)
         cursor = self.chat_display.textCursor()
         cursor.movePosition(QTextCursor.End)
-        
         if sender == "System":
-            self.chat_display.setTextColor(QColor("blue"))
-            self.chat_display.setFontWeight(QFont.Bold)
-            cursor.insertText(f"{sender}: {message}\n")
-        elif sender == "You":
-            self.chat_display.setTextColor(QColor("white"))
-            self.chat_display.setFontWeight(QFont.Normal)
-            cursor.insertHtml(f'''
-                <div style="background-color: #4A4A4A; padding:5px; border-radius:5px; max-width: 60%; margin: 5px;">
-                    <b>You:</b> {message}
+            cursor.insertHtml(f"""
+                <div style="background-color: #2C3E50; 
+                            border-radius: 8px; 
+                            padding: 8px; 
+                            margin-bottom: 10px;">
+                    <span style="color: #1ABC9C; font-weight: bold;">{sender}:</span>
+                    <span style="color: #ECF0F1;">{message}</span>
                 </div>
-                <br>
-            ''')
+            """)
+        elif sender == "You":
+            cursor.insertHtml(f"""
+                <div style="background-color: #4A4A4A;
+                            color: #ECF0F1;
+                            padding: 8px;
+                            border-radius: 8px;
+                            max-width: 60%;
+                            margin: 5px 0 10px auto;">
+                    <b>{sender}:</b> {message}
+                </div>
+            """)
         else:
-            self.chat_display.setTextColor(QColor("purple"))
-            self.chat_display.setFontWeight(QFont.Normal)
-            cursor.insertText(f"{sender}: {message}\n")
-        
+            cursor.insertHtml(f"""
+                <div style="background-color: #3D3D3D;
+                            border-radius: 8px;
+                            padding: 8px;
+                            margin-bottom: 10px;">
+                    <b style="color: #1ABC9C;">{sender}:</b>
+                    <span style="color: #ECF0F1;">{message}</span>
+                </div>
+            """)
         self.chat_display.setReadOnly(True)
         self.chat_display.moveCursor(QTextCursor.End)
-        
-        # Also add the message to the chat history list if available.
         if hasattr(self, 'chat_history_list'):
             item = QListWidgetItem(f"{sender}: {message}")
             self.chat_history_list.addItem(item)
@@ -272,16 +359,18 @@ class EmployeeChatDashboard(QMainWindow):
         query = self.message_entry.text().strip()
         if not query:
             return
-        
         self.append_chat_message("You", query)
         self.message_entry.clear()
-        
         ia_service = self.ia_service_combo.currentText()
         if ia_service == "Internal IA (Mistral)":
-            response_obj = self.system.makeRequest(self.employee_user, query, use_external_ai=False)
+            response_obj = self.system.makeRequest(
+                self.employee_user, query, use_external_ai=False
+            )
             self.append_chat_message("Internal IA (Mistral)", response_obj.content)
         elif ia_service == "External IA (OpenAI)":
-            response_obj = self.system.makeRequest(self.employee_user, query, use_external_ai=True)
+            response_obj = self.system.makeRequest(
+                self.employee_user, query, use_external_ai=True
+            )
             self.append_chat_message("External IA (OpenAI)", response_obj.content)
         else:
             self.append_chat_message("System", "❌ Invalid IA service selected.")
@@ -296,16 +385,22 @@ class EmployeeChatDashboard(QMainWindow):
         )
         if not file_path:
             return
-        
         self.append_chat_message("System", f"Uploading '{os.path.basename(file_path)}' to {ia_service}...")
         result = self.system.upload_file_to_ia(ia_type=ia_service, file_path=file_path)
         self.append_chat_message("System", result)
 
-# --------------------------- Main Application ---------------------------
 def main():
     system = System(external_api_key="initial_api_key_12345")
+    # For testing, you can pass a dummy Admin or DPO user.
+    # Example:
+    # from ..models.admin import Admin
+    # user = Admin(user_id=1, username="admin", hashed_password="", fullname="Administrator")
+    # from ..models.dpo import DPO
+    # user = DPO(user_id=3, username="dpo", hashed_password="", fullname="Data Protection Officer")
+    # For a simple employee, leave user as None.
+    user = None
     app = QApplication(sys.argv)
-    dashboard = EmployeeChatDashboard(system=system)
+    dashboard = EmployeeChatDashboard(system=system, user=user)
     dashboard.show()
     sys.exit(app.exec())
 
