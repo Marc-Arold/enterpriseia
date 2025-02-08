@@ -1,5 +1,5 @@
 # main_controller.py
-from app.gui.admin_window import main
+from app.gui.login_window import main
 from databaseHandler import get_user_consent, get_user_by_id  
 from app.modules.compliance_module import ComplianceModule      
 from app.system import System
