@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtGui import QFont, QPalette, QColor, QIcon
+
 # Import your real System from 'system.py'
 from ..system import System
 
@@ -126,11 +127,18 @@ class DPODashboard(QMainWindow):
         main_layout = QVBoxLayout()
         central_widget.setLayout(main_layout)
 
-        # Title Label
+        # Top header layout with title on the left and the button on the right
+        header_layout = QHBoxLayout()
         title_label = QLabel("DPO Dashboard")
         title_label.setFont(QFont("Helvetica", 20, QFont.Bold))
-        title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
+        header_layout.addWidget(title_label)
+        header_layout.addStretch()
+        # --- New Button in Top Right to Redirect to Chat Interface ---
+        go_to_chat_btn = QPushButton("Go to Chat Interface")
+        go_to_chat_btn.setToolTip("Redirect to the Chat Interface")
+        go_to_chat_btn.clicked.connect(self.open_chat_interface)
+        header_layout.addWidget(go_to_chat_btn)
+        main_layout.addLayout(header_layout)
         main_layout.addSpacing(10)
 
         # Create Tabs
@@ -463,7 +471,18 @@ class DPODashboard(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to generate report: {str(e)}")
 
     # ----------------------------------------------------------------
+    # New Method: Redirect to Chat Interface
+    # ----------------------------------------------------------------
+    def open_chat_interface(self):
+        # Redirect: Close the current dashboard and open the chat interface in its place
+        from employee_window import EmployeeChatDashboard
+        self.chat_interface = EmployeeChatDashboard(system=self.system, user=self.current_user)
+        self.chat_interface.show()
+        self.close()
+
+    # ----------------------------------------------------------------
     # Helper Method for Icons
+    # ----------------------------------------------------------------
     def _get_icon(self, name: str) -> QIcon:
         """
         Compute the absolute path for the icon relative to this file

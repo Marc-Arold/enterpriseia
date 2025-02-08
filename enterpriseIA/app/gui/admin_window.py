@@ -168,7 +168,7 @@ class AdminDashboard(QMainWindow):
         title_label.setObjectName("GroupBoxTitle")
         title_label.setFont(QFont("Helvetica", 20, QFont.Bold))
         nav_layout.addWidget(title_label, alignment=Qt.AlignLeft)
-        nav_layout.addStretch()  # Add stretch to push the button to the right
+        nav_layout.addStretch()  # Push the button to the right
 
         chat_button = QPushButton("Go to Chat Interface")
         chat_button.clicked.connect(self.open_chat_interface)
@@ -240,7 +240,6 @@ class AdminDashboard(QMainWindow):
 
         self.perm_table.setRowCount(len(permissions))
         for row_idx, perm in enumerate(permissions):
-            # Suppose each permission is a tuple: (id, name, description)
             name_item = QTableWidgetItem(perm[1])
             name_item.setForeground(QBrush(QColor("#ECF0F1")))
             desc_item = QTableWidgetItem(perm[2])
@@ -290,7 +289,6 @@ class AdminDashboard(QMainWindow):
         self.role_permissions_scroll = QScrollArea()
         self.role_permissions_scroll.setWidgetResizable(True)
         self.role_permissions_container = QWidget()
-        # Set background color and padding for visibility
         self.role_permissions_container.setStyleSheet("background-color: #34495E; padding: 10px;")
         self.role_permissions_layout = QVBoxLayout(self.role_permissions_container)
         self.role_permissions_scroll.setWidget(self.role_permissions_container)
@@ -321,7 +319,6 @@ class AdminDashboard(QMainWindow):
             all_roles = []
         self.role_table.setRowCount(len(all_roles))
         for row_idx, role_info in enumerate(all_roles):
-            # Suppose role_info is (id, role_name, role_desc)
             role_id_item = QTableWidgetItem(str(role_info[0]))
             role_id_item.setForeground(QBrush(QColor("#ECF0F1")))
             role_name_item = QTableWidgetItem(role_info[1])
@@ -336,7 +333,6 @@ class AdminDashboard(QMainWindow):
             role_name_item = self.role_table.item(row, 1)
             role_name = role_name_item.text() if role_name_item else ""
             self.selected_role_label.setText(f"Selected Role: {role_name} (ID: {self.selected_role_id})")
-            # Clear previous checkboxes
             for i in reversed(range(self.role_permissions_layout.count())):
                 widget = self.role_permissions_layout.itemAt(i).widget()
                 if widget:
@@ -355,7 +351,6 @@ class AdminDashboard(QMainWindow):
             self.role_perm_checkboxes = {}
             for perm in permissions:
                 checkbox = QCheckBox(f"{perm[1]}: {perm[2]}")
-                # Force white text to ensure visibility
                 checkbox.setStyleSheet("""
                     QCheckBox { 
                         color: #FFFFFF;
@@ -415,7 +410,6 @@ class AdminDashboard(QMainWindow):
         main_layout.addLayout(model_input_layout)
         self.model_load_status = QLabel("")
         main_layout.addWidget(self.model_load_status)
-        # Table of models
         self.model_table = QTableWidget()
         self.model_table.setColumnCount(3)
         self.model_table.setHorizontalHeaderLabels(["Model ID", "Model Name", "Created At"])
@@ -423,7 +417,6 @@ class AdminDashboard(QMainWindow):
         self.model_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.model_table.setEditTriggers(QTableWidget.NoEditTriggers)
         main_layout.addWidget(self.model_table)
-        # Buttons
         model_buttons_layout = QHBoxLayout()
         refresh_models_button = QPushButton("Refresh Models")
         refresh_models_button.clicked.connect(self.refresh_model_table)
@@ -447,7 +440,6 @@ class AdminDashboard(QMainWindow):
         models = self.system.getAllModels()
         self.model_table.setRowCount(len(models))
         for row_idx, mod in enumerate(models):
-            # Suppose mod = (id, model_name, created_at)
             id_item = QTableWidgetItem(str(mod[0]))
             id_item.setForeground(QBrush(QColor("#ECF0F1")))
             name_item = QTableWidgetItem(mod[1])
@@ -504,7 +496,6 @@ class AdminDashboard(QMainWindow):
         user_perm_tab = QWidget()
         self.tabs.addTab(user_perm_tab, "User Permissions")
         layout = QVBoxLayout(user_perm_tab)
-        # Search bar for users
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("Enter username or ID to search")
@@ -513,7 +504,6 @@ class AdminDashboard(QMainWindow):
         search_layout.addWidget(self.search_input)
         search_layout.addWidget(search_button)
         layout.addLayout(search_layout)
-        # Table to display search results
         self.users_table = QTableWidget()
         self.users_table.setColumnCount(4)
         self.users_table.setHorizontalHeaderLabels(["User ID", "Username", "Full Name", "Department"])
@@ -522,19 +512,15 @@ class AdminDashboard(QMainWindow):
         self.users_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.users_table.cellClicked.connect(self.user_selected)
         layout.addWidget(self.users_table)
-        # Label to show selected user
         self.selected_user_label = QLabel("No user selected")
         layout.addWidget(self.selected_user_label)
-        # Area to display and edit permissions for the selected user
         self.permissions_scroll = QScrollArea()
         self.permissions_scroll.setWidgetResizable(True)
         self.permissions_container = QWidget()
-        # Set background color and padding for better visibility
         self.permissions_container.setStyleSheet("background-color: #34495E; padding: 10px;")
         self.permissions_layout = QVBoxLayout(self.permissions_container)
         self.permissions_scroll.setWidget(self.permissions_container)
         layout.addWidget(self.permissions_scroll)
-        # Save button to update permissions
         save_button = QPushButton("Save Changes")
         save_button.clicked.connect(self.save_user_permissions)
         layout.addWidget(save_button, alignment=Qt.AlignRight)
@@ -554,7 +540,6 @@ class AdminDashboard(QMainWindow):
             users = get_users_by_username(query_str)
         self.users_table.setRowCount(len(users))
         for row_idx, user_rec in enumerate(users):
-            # Suppose user_rec = (id, username, fullname, department, ...)
             id_item = QTableWidgetItem(str(user_rec[0]))
             id_item.setForeground(QBrush(QColor("#ECF0F1")))
             self.users_table.setItem(row_idx, 0, id_item)
@@ -577,7 +562,6 @@ class AdminDashboard(QMainWindow):
             self.load_user_permissions(self.selected_user_id)
             
     def load_user_permissions(self, user_id):
-        # Clear previous checkboxes
         for i in reversed(range(self.permissions_layout.count())):
             widget = self.permissions_layout.itemAt(i).widget()
             if widget:
@@ -592,7 +576,6 @@ class AdminDashboard(QMainWindow):
         user_perm_ids = set([perm[0] for perm in user_perms])
         for perm in all_perms:
             checkbox = QCheckBox(f"{perm[1]}: {perm[2]}")
-            # Force white text to ensure visibility
             checkbox.setStyleSheet("""
                 QCheckBox { 
                     color: #FFFFFF;
@@ -631,12 +614,11 @@ class AdminDashboard(QMainWindow):
     # ---------------------------------------------------
     # Navigation to Chat Interface
     def open_chat_interface(self):
-        QMessageBox.information(self, "Redirection", f"Redirecting {self.admin_user.getUsername()} to the Chat Interface.")
-        # e.g.,
-        # from chat_window import ChatWindow
-        # chat_window = ChatWindow(self.system, self.admin_user)
-        # chat_window.show()
-        # self.close()
+        # Redirect: Close the current dashboard and open the chat interface in its place admin_user
+        from .employee_window import EmployeeChatDashboard
+        self.chat_interface = EmployeeChatDashboard(system=self.system, user=self.admin_user)
+        self.chat_interface.show()
+        self.close()
 
 def main():
     from ..models.admin import Admin

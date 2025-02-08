@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QSizePolicy, QFrame, QInputDialog, QScrollArea, QStatusBar
 )
 from PySide6.QtGui import (
-    QIcon, QPalette, QColor, QAction, QKeySequence, QGuiApplication
+    QIcon, QPalette, QColor, QAction, QKeySequence, QGuiApplication, QFont
 )
 from PySide6.QtCore import (
     Qt, QThread, Signal, QSettings, QTimer, QDateTime
@@ -28,26 +28,24 @@ class ChatMessageWidget(QWidget):
     def __init__(self, sender: str, message: str, timestamp: QDateTime, 
                  is_error: bool = False, parent=None):
         super().__init__(parent)
-        # Use our own background styling
         self.setAttribute(Qt.WA_StyledBackground, True)
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(4)
         
-        # Header layout with sender and time.
         header = QHBoxLayout()
         self.sender_label = QLabel(sender)
-        self.sender_label.setStyleSheet("font-weight: bold; font-size: 12px;")
+        self.sender_label.setStyleSheet("font-weight: bold; font-size: 12px; background-color: transparent;")
         self.time_label = QLabel(timestamp.toString("hh:mm AP"))
-        self.time_label.setStyleSheet("font-size: 10px;")
+        self.time_label.setStyleSheet("font-size: 10px; background-color: transparent;")
         header.addWidget(self.sender_label)
         header.addStretch()
         header.addWidget(self.time_label)
         
-        # Message content
         self.content = QLabel(message)
         self.content.setWordWrap(True)
+        self.content.setStyleSheet("background-color: transparent;")
         
         self.layout.addLayout(header)
         self.layout.addWidget(self.content)
@@ -64,16 +62,14 @@ class ChatMessageWidget(QWidget):
             text_color = "#ECF0F1"
             border_color = "#16A085"
             
-        # Set the container style.
         self.setStyleSheet(f"""
             background-color: {bg_color};
             border: 1px solid {border_color};
             border-radius: 8px;
         """)
-        # Explicit text colors for better contrast
-        self.content.setStyleSheet(f"color: {text_color}; padding: 8px;")
-        self.sender_label.setStyleSheet(f"color: {text_color}; font-weight: bold; font-size: 12px;")
-        self.time_label.setStyleSheet(f"color: {text_color}; font-size: 10px;")
+        self.content.setStyleSheet(f"background-color: transparent; color: {text_color}; padding: 8px;")
+        self.sender_label.setStyleSheet(f"background-color: transparent; color: {text_color}; font-weight: bold; font-size: 12px;")
+        self.time_label.setStyleSheet(f"background-color: transparent; color: {text_color}; font-size: 10px;")
 
 # =============================================================================
 # Background Worker
@@ -114,15 +110,14 @@ class EmployeeChatDashboard(QMainWindow):
         self._message_history = []
         self._dark_theme = True
 
-        # Attributes for animated typing indicator
         self.ellipsis_count = 0
         self.typing_timer = QTimer(self)
         self.typing_timer.timeout.connect(self._update_typing_indicator)
 
-        self._configure_window()   # Basic window configuration
+        self._configure_window()
         self._create_actions()
-        self._create_ui()          # Create all UI elements (including header)
-        self._apply_theme()        # Apply theme after UI elements exist
+        self._create_ui()
+        self._apply_theme()
         self._load_settings()
         self._setup_shortcuts()
 
@@ -136,17 +131,14 @@ class EmployeeChatDashboard(QMainWindow):
         self.setDockOptions(QMainWindow.AnimatedDocks | QMainWindow.AllowNestedDocks)
 
     def _create_actions(self):
-        # File Actions
         self.export_action = QAction("Export Chat", self)
         self.export_action.setShortcut(QKeySequence("Ctrl+E"))
         self.export_action.triggered.connect(self._export_chat)
 
-        # Edit Actions
         self.search_action = QAction("Search History", self)
         self.search_action.setShortcut(QKeySequence.Find)
         self.search_action.triggered.connect(self._show_search)
 
-        # View Actions
         self.toggle_theme_action = QAction("Toggle Theme", self)
         self.toggle_theme_action.setShortcut(QKeySequence("Ctrl+T"))
         self.toggle_theme_action.triggered.connect(self._toggle_theme)
@@ -166,44 +158,36 @@ class EmployeeChatDashboard(QMainWindow):
         self._create_status_bar()
 
     def _create_toolbars(self):
-        # Main Toolbar
         main_toolbar = QToolBar("Main Tools")
         main_toolbar.setObjectName("MainToolbar")
         main_toolbar.setMovable(False)
-        # Set spacing between toolbar items if the layout is available
         if main_toolbar.layout():
             main_toolbar.layout().setSpacing(10)
         self.addToolBar(Qt.TopToolBarArea, main_toolbar)
         
-        # History Toggle Button
         self.history_btn = QPushButton()
         self.history_btn.setIcon(self._get_icon("history_icon"))
         self.history_btn.clicked.connect(self.toggle_chat_history)
         main_toolbar.addWidget(self.history_btn)
         
-        # Spacer to push following buttons to the right
         spacer = QWidget()
         spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         main_toolbar.addWidget(spacer)
         
-        # Theme Toggle Button
         self.theme_btn = QPushButton()
         self.theme_btn.setIcon(self._get_icon("theme_icon"))
         self.theme_btn.clicked.connect(self._toggle_theme)
         main_toolbar.addWidget(self.theme_btn)
         
-        # Fixed spacer between theme and share buttons
         fixed_spacer = QWidget()
         fixed_spacer.setFixedWidth(20)
         main_toolbar.addWidget(fixed_spacer)
         
-        # Share Button
         self.share_btn = QPushButton()
         self.share_btn.setIcon(self._get_icon("share_icon"))
         self.share_btn.clicked.connect(self._share_messages)
         main_toolbar.addWidget(self.share_btn)
         
-        # Profile Toolbar
         profile_toolbar = QToolBar("Profile")
         profile_toolbar.setObjectName("ProfileToolbar")
         if profile_toolbar.layout():
@@ -218,26 +202,13 @@ class EmployeeChatDashboard(QMainWindow):
         self.history_dock = QDockWidget("Chat History", self)
         self.history_dock.setObjectName("ChatHistoryDock")
         self.history_dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        # Ensure sufficient width for displaying content.
+        self.history_dock.setMinimumWidth(300)
         
         self.history_list = QListWidget()
-        # Base styling; individual items will have their own colors
-        self.history_list.setStyleSheet("""
-            QListWidget {
-                background-color: #34495E;
-                border: none;
-            }
-            QListWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #2C3E50;
-            }
-            QListWidget::item:hover {
-                background-color: #3B5366;
-            }
-            QListWidget::item:selected {
-                background-color: #16A085;
-            }
-        """)
-        self.history_list.doubleClicked.connect(self._load_history_item)
+        self.history_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # Remove explicit styling so global styles apply.
+        self.history_list.setStyleSheet("")
         self.history_dock.setWidget(self.history_list)
         self.addDockWidget(Qt.RightDockWidgetArea, self.history_dock)
         self.history_dock.hide()
@@ -249,7 +220,6 @@ class EmployeeChatDashboard(QMainWindow):
         layout.setContentsMargins(10, 5, 10, 5)
         layout.setSpacing(10)
 
-        # Header: Contains title on the left and model selector on the right.
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         header_layout.setContentsMargins(10, 10, 10, 10)
@@ -258,14 +228,12 @@ class EmployeeChatDashboard(QMainWindow):
         self.header_label.setStyleSheet("font-size: 24px; font-weight: bold;")
         header_layout.addWidget(self.header_label)
         header_layout.addStretch()
-        # Model Selector (choose model functionality)
         self.service_combo = QComboBox()
         self.service_combo.addItems(["Internal AI (Mistral)", "External AI (OpenAI)"])
         self.service_combo.setCurrentIndex(0)
         header_layout.addWidget(self.service_combo)
         layout.addWidget(header_widget)
 
-        # Chat Display Area using QScrollArea
         self.chat_scroll_area = QScrollArea()
         self.chat_scroll_area.setWidgetResizable(True)
         self.chat_container = QWidget()
@@ -274,26 +242,21 @@ class EmployeeChatDashboard(QMainWindow):
         self.chat_scroll_area.setWidget(self.chat_container)
         layout.addWidget(self.chat_scroll_area, 1)
 
-        # Input Area: Contains the file upload button, the message input, and the send button.
         input_layout = QHBoxLayout()
-        # File Upload Button on the left
         self.upload_btn = QPushButton()
         self.upload_btn.setIcon(self._get_icon("upload_icon"))
         self.upload_btn.setToolTip("Upload File")
         self.upload_btn.clicked.connect(self._upload_file)
         input_layout.addWidget(self.upload_btn, 0)
-        # Message Input
         self.message_input = QLineEdit()
         self.message_input.setPlaceholderText("Type your message...")
         self.message_input.returnPressed.connect(self._send_message)
         input_layout.addWidget(self.message_input, 1)
-        # Send Button
         self.send_btn = QPushButton("Send")
         self.send_btn.clicked.connect(self._send_message)
         input_layout.addWidget(self.send_btn, 0)
         layout.addLayout(input_layout)
 
-        # Typing Indicator with animated dots
         self.typing_indicator = QLabel("AI is preparing")
         self.typing_indicator.hide()
         layout.addWidget(self.typing_indicator)
@@ -348,16 +311,13 @@ class EmployeeChatDashboard(QMainWindow):
     # Enhanced Features: Animated Typing Indicator
     # =========================================================================
     def _show_typing_indicator(self):
-        # Reset the dot counter and show the indicator with base text.
         self.ellipsis_count = 0
         self.typing_indicator.setText("AI is preparing")
         self.typing_indicator.show()
         self._typing_indicator_active = True
-        # Start the timer to update the dots every 500 ms.
         self.typing_timer.start(500)
 
     def _update_typing_indicator(self):
-        # Cycle through 0 to 3 dots.
         self.ellipsis_count = (self.ellipsis_count + 1) % 4
         dots = '.' * self.ellipsis_count
         self.typing_indicator.setText("AI is preparing" + dots)
@@ -372,32 +332,40 @@ class EmployeeChatDashboard(QMainWindow):
                         timestamp: QDateTime, is_error=False):
         msg_widget = ChatMessageWidget(sender, message, timestamp, is_error)
         self.chat_layout.addWidget(msg_widget)
-        # Auto-scroll to the bottom.
         scroll_bar = self.chat_scroll_area.verticalScrollBar()
         scroll_bar.setValue(scroll_bar.maximum())
 
     def _add_to_history(self, sender: str, message: str, timestamp: QDateTime):
+        # Debug: print the data being passed.
+        print(f"DEBUG: _add_to_history: sender={sender}, message={message}, timestamp={timestamp.toString()}")
         item = QListWidgetItem()
         item.setData(Qt.UserRole, (sender, message, timestamp))
         
         widget = QWidget()
+        widget.setStyleSheet("background-color: transparent;")
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(5, 2, 5, 2)
         
-        # Set colors based on theme for readability.
+        # Explicitly set text colors for visibility.
         if self._dark_theme:
-            header_color = "#ECF0F1"
-            content_color = "#ECF0F1"
+            header_color = "#FFFFFF"
+            content_color = "#FFFFFF"
         else:
-            header_color = "#2C3E50"
-            content_color = "#2C3E50"
+            header_color = "#000000"
+            content_color = "#000000"
         
+        # Add explicit background-color: transparent in the style.
         header = QLabel(f"{sender} - {timestamp.toString('MMM d h:mm AP')}")
-        header.setStyleSheet(f"color: {header_color}; font-size: 10px;")
+        header.setStyleSheet(f"background-color: transparent; color: {header_color}; font-size: 12px;")
+        header.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Ensure transparency attribute is set.
+        header.setAttribute(Qt.WA_TranslucentBackground)
         
         content = QLabel(message)
-        content.setStyleSheet(f"color: {content_color}; font-size: 11px;")
+        content.setStyleSheet(f"background-color: transparent; color: {content_color}; font-size: 13px;")
         content.setWordWrap(True)
+        content.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        content.setAttribute(Qt.WA_TranslucentBackground)
         
         layout.addWidget(header)
         layout.addWidget(content)
@@ -409,7 +377,10 @@ class EmployeeChatDashboard(QMainWindow):
 
     def _load_history_item(self, index):
         item = self.history_list.item(index.row())
-        sender, message, timestamp = item.data(Qt.UserRole)
+        data = item.data(Qt.UserRole)
+        # Debug: print the data loaded from the history item.
+        print(f"DEBUG: _load_history_item: data={data}")
+        sender, message, timestamp = data
         self._append_message(sender, message, timestamp)
 
     # =========================================================================
@@ -419,19 +390,19 @@ class EmployeeChatDashboard(QMainWindow):
         palette = QPalette()
         if self._dark_theme:
             palette.setColor(QPalette.Window, QColor("#2C3E50"))
-            palette.setColor(QPalette.WindowText, Qt.white)
+            palette.setColor(QPalette.WindowText, QColor("#FFFFFF"))
             palette.setColor(QPalette.Base, QColor("#34495E"))
-            palette.setColor(QPalette.Text, Qt.white)
+            palette.setColor(QPalette.Text, QColor("#FFFFFF"))
             palette.setColor(QPalette.Button, QColor("#16A085"))
-            palette.setColor(QPalette.ButtonText, Qt.white)
+            palette.setColor(QPalette.ButtonText, QColor("#FFFFFF"))
             palette.setColor(QPalette.Highlight, QColor("#1ABC9C"))
         else:
             palette.setColor(QPalette.Window, QColor("#F5F6FA"))
-            palette.setColor(QPalette.WindowText, Qt.black)
-            palette.setColor(QPalette.Base, Qt.white)
-            palette.setColor(QPalette.Text, Qt.black)
+            palette.setColor(QPalette.WindowText, QColor("#000000"))
+            palette.setColor(QPalette.Base, QColor("#FFFFFF"))
+            palette.setColor(QPalette.Text, QColor("#000000"))
             palette.setColor(QPalette.Button, QColor("#3498DB"))
-            palette.setColor(QPalette.ButtonText, Qt.white)
+            palette.setColor(QPalette.ButtonText, QColor("#FFFFFF"))
             palette.setColor(QPalette.Highlight, QColor("#2980B9"))
 
         self.setPalette(palette)
@@ -468,22 +439,50 @@ class EmployeeChatDashboard(QMainWindow):
                 background: $BASE;
                 color: $TEXT;
             }
+            QDockWidget {
+                background-color: $DOCK_BACKGROUND;
+                color: $TEXT;
+                border: 1px solid $HIGHLIGHT;
+            }
+            QDockWidget::title {
+                background: $HIGHLIGHT;
+                padding: 4px;
+                text-align: center;
+                color: $BUTTON_TEXT;
+            }
+            QListWidget {
+                background-color: $DOCK_BACKGROUND;
+                border: none;
+                color: $TEXT;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid $HIGHLIGHT;
+            }
+            QListWidget::item:hover {
+                background-color: $HIGHLIGHT;
+            }
+            QListWidget::item:selected {
+                background-color: $HIGHLIGHT;
+            }
         """
 
         if self._dark_theme:
             style = base_style.replace("$WINDOW", "#2C3E50") \
                              .replace("$BASE", "#34495E") \
                              .replace("$HIGHLIGHT", "#16A085") \
-                             .replace("$TEXT", "#ECF0F1") \
+                             .replace("$TEXT", "#FFFFFF") \
                              .replace("$BUTTON_TEXT", "white") \
-                             .replace("$DISABLED", "#7F8C8D")
+                             .replace("$DISABLED", "#7F8C8D") \
+                             .replace("$DOCK_BACKGROUND", "#34495E")
         else:
             style = base_style.replace("$WINDOW", "#F5F6FA") \
                              .replace("$BASE", "white") \
                              .replace("$HIGHLIGHT", "#3498DB") \
-                             .replace("$TEXT", "#2C3E50") \
+                             .replace("$TEXT", "#000000") \
                              .replace("$BUTTON_TEXT", "white") \
-                             .replace("$DISABLED", "#BDC3C7")
+                             .replace("$DISABLED", "#BDC3C7") \
+                             .replace("$DOCK_BACKGROUND", "white")
 
         self.setStyleSheet(style)
         self.header_label.setStyleSheet(f"""
@@ -519,7 +518,6 @@ class EmployeeChatDashboard(QMainWindow):
                         hashed_password="", fullname="Employee")
 
     def _get_icon(self, name: str) -> QIcon:
-        # Compute the absolute path for the icon relative to this file.
         icon_path = os.path.join(os.path.dirname(__file__), "icons", f"{name}.png")
         if os.path.exists(icon_path):
             return QIcon(icon_path)
@@ -586,7 +584,6 @@ class EmployeeChatDashboard(QMainWindow):
         pass
 
     def _share_messages(self):
-        # Collect chat history from the chat layout.
         chat_text = ""
         count = self.chat_layout.count()
         for i in range(count):
@@ -601,7 +598,6 @@ class EmployeeChatDashboard(QMainWindow):
     def _upload_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Upload File", "", "All Files (*)")
         if file_path:
-            # Simulate file upload by appending a message with the file name.
             timestamp = QDateTime.currentDateTime()
             upload_message = f"Uploaded file: {os.path.basename(file_path)}"
             self._append_message("You", upload_message, timestamp)
@@ -614,13 +610,10 @@ def main():
     system = System(external_api_key="initial_api_key_12345")
     app = QApplication(sys.argv)
     
-    # Configure application-wide styles
     app.setStyle("Fusion")
-    # Compute absolute path for the application icon
     icon_path = os.path.join(os.path.dirname(__file__), "icons", "app_icon.png")
     app.setWindowIcon(QIcon(icon_path))
     
-    # Create and show window
     dashboard = EmployeeChatDashboard(system=system)
     dashboard.show()
     
