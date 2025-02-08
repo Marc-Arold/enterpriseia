@@ -61,7 +61,7 @@ class System:
             assign_role_to_user(user_id, existing_role[0])
         return user_id
     
-    def ensure_use_ia_permission_exists():
+    def ensure_use_ia_permission_exists(self):
         existing_perm = get_permission_by_name("USE_IA")
         if not existing_perm:
             create_permission("USE_IA", "Permission to use internal AI")
@@ -197,7 +197,11 @@ class System:
             return Response("User is not authenticated.", None)
         req = Request(content=content, user=user)
         insert_request(req.requestId, user.user_id, req.content)
+        #insert_request(req.requestId, user[0], req.content)
         if not self.compliance_module.has_valid_consent(user.user_id):
+            print(self.compliance_module.has_valid_consent(user.user_id))
+            print("User ID",user.user_id)
+            print("Here")
             denied_response = Response("No consent for AI processing.", req)
             insert_response(req.requestId, denied_response.content)
             self.audit_module.log_request(req)
@@ -232,12 +236,12 @@ class System:
         return f"Data for user {target_user_id} has been erased."
 
     def setUserConsent(self, acting_user, target_user_id: int, consent: bool):
-        if acting_user.user_id != target_user_id:
+        if acting_user != target_user_id:
             if not self.access_control.user_has_permission(acting_user, "MANAGE_COMPLIANCE"):
                 return "Permission denied: cannot change another user's consent."
         from databaseHandler import set_user_consent
         set_user_consent(target_user_id, consent)
-        insert_audit_log(acting_user.user_id, "SET_CONSENT", f"User {acting_user.user_id} set consent={consent} for user {target_user_id}")
+        insert_audit_log(acting_user, "SET_CONSENT", f"User {acting_user} set consent={consent} for user {target_user_id}")
         return f"Consent set to {consent} for user {target_user_id}."
 
     def enforceRetentionNow(self, acting_user):

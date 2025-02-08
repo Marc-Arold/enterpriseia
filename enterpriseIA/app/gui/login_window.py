@@ -1,9 +1,10 @@
 # login_window.py
 
 import sys
+import os
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout, QFormLayout,
-    QLineEdit, QPushButton, QLabel, QMessageBox, QSpacerItem, QSizePolicy
+    QLineEdit, QPushButton, QLabel, QMessageBox, QSpacerItem, QSizePolicy, QProgressBar, QCheckBox
 )
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QObject, Signal, Slot, QThread
@@ -34,7 +35,14 @@ class AuthWindow(QMainWindow):
         self.system = System()
         self.setWindowTitle("User Authentication")
         self.setMinimumSize(500, 500)
-        self.setWindowIcon(QIcon("icons/app_icon.png"))
+        
+        # Compute the absolute path for the icon relative to this file
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", "app_icon.png")
+        icon = QIcon(icon_path)
+        # Debug output to verify if the icon is loaded correctly
+        print("Icon is null:", icon.isNull())
+        self.setWindowIcon(icon)
+        
         self.setStyleSheet(self.loadStyles())
         self.initUI()
 
@@ -93,6 +101,21 @@ class AuthWindow(QMainWindow):
                 background: #1ABC9C;
                 color: #2C3E50;
             }
+            QProgressBar {
+                border: 1px solid #34495E;
+                border-radius: 5px;
+                background-color: #34495E;
+                color: #ECF0F1;
+                text-align: center;
+            }
+            QProgressBar::chunk {
+                background-color: #1ABC9C;
+                border-radius: 5px;
+            }
+            QCheckBox {
+                color: #ECF0F1;
+                font-size: 14px;
+            }
         """
 
     def initUI(self):
@@ -113,6 +136,12 @@ class AuthWindow(QMainWindow):
 
         self.create_login_tab()
         self.create_register_tab()
+
+        # Loading bar for async operations
+        self.loading_bar = QProgressBar()
+        self.loading_bar.setRange(0, 0)  # Indeterminate progress
+        self.loading_bar.setVisible(False)
+        main_layout.addWidget(self.loading_bar)
 
         main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
@@ -166,16 +195,59 @@ class AuthWindow(QMainWindow):
         self.register_password_input = QLineEdit()
         self.register_password_input.setEchoMode(QLineEdit.Password)
         self.register_password_input.setPlaceholderText("Choisissez un mot de passe")
+        self.register_password_input.textChanged.connect(self.update_password_strength)
         form_layout.addRow(QLabel("Password:"), self.register_password_input)
+
+        self.password_strength_bar = QProgressBar()
+        self.password_strength_bar.setRange(0, 100)
+        self.password_strength_bar.setValue(0)
+        form_layout.addRow(QLabel("Password Strength:"), self.password_strength_bar)
 
         self.register_password_confirm_input = QLineEdit()
         self.register_password_confirm_input.setEchoMode(QLineEdit.Password)
         self.register_password_confirm_input.setPlaceholderText("Confirmez votre mot de passe")
+        self.register_password_confirm_input.textChanged.connect(self.validate_password_match)
         form_layout.addRow(QLabel("Confirm Password:"), self.register_password_confirm_input)
+
+        self.password_match_label = QLabel()
+        self.password_match_label.setStyleSheet("color: red;")
+        form_layout.addRow(self.password_match_label)
+
+        self.accept_terms_checkbox = QCheckBox("J'accepte les conditions d'utilisation de l'IA locale")
+        self.accept_terms_checkbox.setChecked(False)
+        layout.addWidget(self.accept_terms_checkbox)
 
         register_button = QPushButton("Register")
         register_button.clicked.connect(self.handle_register)
         layout.addWidget(register_button, alignment=Qt.AlignCenter)
+
+    def update_password_strength(self):
+        password = self.register_password_input.text()
+        strength = self.calculate_password_strength(password)
+        self.password_strength_bar.setValue(strength)
+
+    def calculate_password_strength(self, password):
+        length = len(password)
+        if length < 4:
+            return 0
+        elif length < 8:
+            return 25
+        elif length < 12:
+            return 50
+        elif length < 16:
+            return 75
+        else:
+            return 100
+
+    def validate_password_match(self):
+        password = self.register_password_input.text()
+        confirm_password = self.register_password_confirm_input.text()
+        if password == confirm_password:
+            self.password_match_label.setText("Passwords match")
+            self.password_match_label.setStyleSheet("color: green;")
+        else:
+            self.password_match_label.setText("Passwords do not match")
+            self.password_match_label.setStyleSheet("color: red;")
 
     def handle_login(self):
         username = self.login_username_input.text().strip()
@@ -185,7 +257,8 @@ class AuthWindow(QMainWindow):
             QMessageBox.warning(self, "Validation", "Veuillez entrer le nom d'utilisateur et le mot de passe.")
             return
 
-        # Run authentication asynchronously to avoid UI blocking
+        self.loading_bar.setVisible(True)
+
         self.login_thread = QThread()
         self.login_worker = Worker(self.system.authenticateUser, username, password)
         self.login_worker.moveToThread(self.login_thread)
@@ -198,16 +271,17 @@ class AuthWindow(QMainWindow):
         self.login_thread.start()
 
     def process_login_result(self, user):
+        self.loading_bar.setVisible(False)
         if user:
             QMessageBox.information(self, "Connexion Réussie", f"Bienvenue, {user.getUsername()}!")
             self.login_username_input.clear()
             self.login_password_input.clear()
-            # Redirect the user based on the type of user object (Admin, DPO, or Employee)
             self.redirect_user(user)
         else:
             QMessageBox.critical(self, "Échec de Connexion", "Nom d'utilisateur ou mot de passe invalide.")
 
     def process_login_error(self, error_msg):
+        self.loading_bar.setVisible(False)
         QMessageBox.critical(self, "Erreur", f"Une erreur est survenue : {error_msg}")
 
     def handle_register(self):
@@ -225,7 +299,12 @@ class AuthWindow(QMainWindow):
             QMessageBox.warning(self, "Validation", "Les mots de passe ne correspondent pas.")
             return
 
-        # Run registration asynchronously
+        if not self.accept_terms_checkbox.isChecked():
+            QMessageBox.warning(self, "Validation", "Vous devez accepter les conditions d'utilisation de l'IA locale.")
+            return
+
+        self.loading_bar.setVisible(True)
+
         self.register_thread = QThread()
         self.register_worker = Worker(self.system.createUser, username, password, fullname, department)
         self.register_worker.moveToThread(self.register_thread)
@@ -238,14 +317,18 @@ class AuthWindow(QMainWindow):
         self.register_thread.start()
 
     def process_register_result(self, user_id):
+        self.loading_bar.setVisible(False)
         if user_id:
+            self.system.ensure_use_ia_permission_exists()
+            self.system.setUserConsent(user_id, user_id, True)
             QMessageBox.information(self, "Inscription Réussie", "Utilisateur inscrit avec succès.")
             self.clear_register_form()
-            self.tabs.setCurrentIndex(0)  # Switch to login tab
+            self.tabs.setCurrentIndex(0)
         else:
             QMessageBox.critical(self, "Échec de l'Inscription", "Le nom d'utilisateur existe déjà.")
 
     def process_register_error(self, error_msg):
+        self.loading_bar.setVisible(False)
         QMessageBox.critical(self, "Erreur", f"Une erreur est survenue : {error_msg}")
 
     def clear_register_form(self):
@@ -256,9 +339,6 @@ class AuthWindow(QMainWindow):
         self.register_password_confirm_input.clear()
 
     def redirect_user(self, user):
-        """
-        Redirects the authenticated user to the appropriate interface based on the user type.
-        """
         role = type(user).__name__
         if role == "Admin":
             from admin_window import AdminDashboard
@@ -268,12 +348,15 @@ class AuthWindow(QMainWindow):
             self.dashboard = DPODashboard(system=self.system, current_user=user)
         else:
             from .employee_window import EmployeeChatDashboard
-            self.dashboard = EmployeeChatDashboard(system=self.system)
+            self.dashboard = EmployeeChatDashboard(system=self.system, user=user)
         self.dashboard.show()
         self.close()
 
 def main():
     app = QApplication(sys.argv)
+    # Set a global icon for the application using the computed absolute path
+    icon_path = os.path.join(os.path.dirname(__file__), "icons", "app_icon.png")
+    app.setWindowIcon(QIcon(icon_path))
     window = AuthWindow()
     window.show()
     sys.exit(app.exec())

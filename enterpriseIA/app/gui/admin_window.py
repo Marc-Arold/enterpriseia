@@ -10,6 +10,7 @@ from PySide6.QtGui import QIcon, QFont, QBrush, QColor
 
 # Adjust as needed to match your package structure
 from ..system import System  
+from databaseHandler import get_users_by_username, get_user_by_id
 
 class Worker(QObject):
     finished = Signal(object)
@@ -38,7 +39,8 @@ class AdminDashboard(QMainWindow):
         self.setWindowTitle("Admin Dashboard")
         self.resize(1000, 700)
         self.setMinimumSize(800, 600)
-        self.setWindowIcon(QIcon("icons/app_icon.png"))
+        # Use the helper method to load the app icon with an absolute path.
+        self.setWindowIcon(self._get_icon("app_icon"))
 
         # Main style settings
         self.setStyleSheet("""
@@ -67,7 +69,6 @@ class AdminDashboard(QMainWindow):
                 font-size: 14px;
                 font-weight: bold;
                 min-width: 120px;
-                transition: background-color 0.3s ease;
             }
             QPushButton:hover {
                 background-color: #16A085;
@@ -137,7 +138,6 @@ class AdminDashboard(QMainWindow):
                 color: #ECF0F1;
                 margin: 4px;
                 border-radius: 5px;
-                transition: all 0.3s ease;
             }
             QTabBar::tab:selected {
                 background: #1ABC9C;
@@ -146,6 +146,16 @@ class AdminDashboard(QMainWindow):
             }
         """)
         self.initUI()
+
+    def _get_icon(self, name: str) -> QIcon:
+        """
+        Compute the absolute path for the icon relative to this file
+        and return a QIcon object.
+        """
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", f"{name}.png")
+        if os.path.exists(icon_path):
+            return QIcon(icon_path)
+        return QIcon.fromTheme(name)
 
     def initUI(self):
         central_widget = QWidget()
@@ -158,10 +168,11 @@ class AdminDashboard(QMainWindow):
         title_label.setObjectName("GroupBoxTitle")
         title_label.setFont(QFont("Helvetica", 20, QFont.Bold))
         nav_layout.addWidget(title_label, alignment=Qt.AlignLeft)
+        nav_layout.addStretch()  # Add stretch to push the button to the right
 
         chat_button = QPushButton("Go to Chat Interface")
         chat_button.clicked.connect(self.open_chat_interface)
-        nav_layout.addWidget(chat_button, alignment=Qt.AlignRight)
+        nav_layout.addWidget(chat_button)
         main_layout.addLayout(nav_layout)
         main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
@@ -234,7 +245,6 @@ class AdminDashboard(QMainWindow):
             name_item.setForeground(QBrush(QColor("#ECF0F1")))
             desc_item = QTableWidgetItem(perm[2])
             desc_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             self.perm_table.setItem(row_idx, 0, name_item)
             self.perm_table.setItem(row_idx, 1, desc_item)
 
@@ -253,7 +263,6 @@ class AdminDashboard(QMainWindow):
         self.new_role_desc.setPlaceholderText("Enter role description")
         create_role_button = QPushButton("Create Role")
         create_role_button.clicked.connect(self.create_new_role)
-
         create_role_layout.addWidget(self.new_role_name)
         create_role_layout.addWidget(self.new_role_desc)
         create_role_layout.addWidget(create_role_button)
@@ -281,6 +290,8 @@ class AdminDashboard(QMainWindow):
         self.role_permissions_scroll = QScrollArea()
         self.role_permissions_scroll.setWidgetResizable(True)
         self.role_permissions_container = QWidget()
+        # Set background color and padding for visibility
+        self.role_permissions_container.setStyleSheet("background-color: #34495E; padding: 10px;")
         self.role_permissions_layout = QVBoxLayout(self.role_permissions_container)
         self.role_permissions_scroll.setWidget(self.role_permissions_container)
         layout.addWidget(self.role_permissions_scroll)
@@ -297,7 +308,6 @@ class AdminDashboard(QMainWindow):
         if not role_name:
             QMessageBox.warning(self, "Warning", "Role name cannot be empty.")
             return
-
         msg = self.system.createRole(self.admin_user, role_name, role_desc)
         QMessageBox.information(self, "Create Role", msg)
         self.refresh_roles_table()
@@ -309,16 +319,13 @@ class AdminDashboard(QMainWindow):
             all_roles = get_all_roles()  
         except:
             all_roles = []
-
         self.role_table.setRowCount(len(all_roles))
         for row_idx, role_info in enumerate(all_roles):
             # Suppose role_info is (id, role_name, role_desc)
             role_id_item = QTableWidgetItem(str(role_info[0]))
             role_id_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             role_name_item = QTableWidgetItem(role_info[1])
             role_name_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             self.role_table.setItem(row_idx, 0, role_id_item)
             self.role_table.setItem(row_idx, 1, role_name_item)
 
@@ -329,27 +336,22 @@ class AdminDashboard(QMainWindow):
             role_name_item = self.role_table.item(row, 1)
             role_name = role_name_item.text() if role_name_item else ""
             self.selected_role_label.setText(f"Selected Role: {role_name} (ID: {self.selected_role_id})")
-
             # Clear previous checkboxes
             for i in reversed(range(self.role_permissions_layout.count())):
                 widget = self.role_permissions_layout.itemAt(i).widget()
                 if widget:
                     widget.setParent(None)
-
             try:
                 from databaseHandler import get_all_permissions
                 permissions = get_all_permissions()
             except:
                 permissions = []
-
             try:
                 from databaseHandler import get_permissions_for_role
                 role_perms = get_permissions_for_role(self.selected_role_id)
             except:
                 role_perms = []
-
             role_perm_ids = set([rp[0] for rp in role_perms])
-
             self.role_perm_checkboxes = {}
             for perm in permissions:
                 checkbox = QCheckBox(f"{perm[1]}: {perm[2]}")
@@ -377,14 +379,12 @@ class AdminDashboard(QMainWindow):
         if self.selected_role_id is None:
             QMessageBox.warning(self, "Warning", "No role selected.")
             return
-
         try:
             from databaseHandler import get_permissions_for_role
             current_role_perms = get_permissions_for_role(self.selected_role_id)
         except:
             current_role_perms = []
         current_perm_ids = set([rp[0] for rp in current_role_perms])
-
         for perm_id, checkbox in self.role_perm_checkboxes.items():
             if checkbox.isChecked() and perm_id not in current_perm_ids:
                 res = self.system.attachPermissionToRole(self.admin_user, self.selected_role_id, perm_id)
@@ -392,7 +392,6 @@ class AdminDashboard(QMainWindow):
             elif not checkbox.isChecked() and perm_id in current_perm_ids:
                 res = self.system.detachPermissionFromRole(self.admin_user, self.selected_role_id, perm_id)
                 print(res)
-
         QMessageBox.information(self, "Success", "Role permissions updated.")
         row = self.role_table.currentRow()
         if row >= 0:
@@ -404,10 +403,8 @@ class AdminDashboard(QMainWindow):
         model_tab = QWidget()
         self.tabs.addTab(model_tab, "Load Models")
         main_layout = QVBoxLayout(model_tab)
-
         instruction_label = QLabel("Enter a model name to load from Ollama:")
         main_layout.addWidget(instruction_label)
-
         model_input_layout = QHBoxLayout()
         self.model_name_edit = QLineEdit()
         self.model_name_edit.setPlaceholderText("e.g., llama2, wizardLM...")
@@ -416,10 +413,8 @@ class AdminDashboard(QMainWindow):
         model_input_layout.addWidget(self.model_name_edit)
         model_input_layout.addWidget(model_load_button)
         main_layout.addLayout(model_input_layout)
-
         self.model_load_status = QLabel("")
         main_layout.addWidget(self.model_load_status)
-
         # Table of models
         self.model_table = QTableWidget()
         self.model_table.setColumnCount(3)
@@ -428,7 +423,6 @@ class AdminDashboard(QMainWindow):
         self.model_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.model_table.setEditTriggers(QTableWidget.NoEditTriggers)
         main_layout.addWidget(self.model_table)
-
         # Buttons
         model_buttons_layout = QHBoxLayout()
         refresh_models_button = QPushButton("Refresh Models")
@@ -438,7 +432,6 @@ class AdminDashboard(QMainWindow):
         model_buttons_layout.addWidget(refresh_models_button)
         model_buttons_layout.addWidget(delete_model_button)
         main_layout.addLayout(model_buttons_layout)
-
         self.refresh_model_table()
 
     def load_model_from_ollama(self):
@@ -446,7 +439,6 @@ class AdminDashboard(QMainWindow):
         if not model_name:
             QMessageBox.warning(self, "Warning", "Model name cannot be empty.")
             return
-
         result = self.system.adminLoadLocalModel(self.admin_user, model_name)
         self.model_load_status.setText(result)
         self.refresh_model_table()
@@ -458,13 +450,10 @@ class AdminDashboard(QMainWindow):
             # Suppose mod = (id, model_name, created_at)
             id_item = QTableWidgetItem(str(mod[0]))
             id_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             name_item = QTableWidgetItem(mod[1])
             name_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             date_item = QTableWidgetItem(str(mod[2]))
             date_item.setForeground(QBrush(QColor("#ECF0F1")))
-
             self.model_table.setItem(row_idx, 0, id_item)
             self.model_table.setItem(row_idx, 1, name_item)
             self.model_table.setItem(row_idx, 2, date_item)
@@ -474,12 +463,10 @@ class AdminDashboard(QMainWindow):
         if row < 0:
             QMessageBox.warning(self, "Warning", "No model selected.")
             return
-
         model_id_item = self.model_table.item(row, 0)
         model_name_item = self.model_table.item(row, 1)
         if not model_id_item or not model_name_item:
             return
-
         model_id = int(model_id_item.text())
         model_name = model_name_item.text()
         msg = self.system.adminDeleteLocalModel(self.admin_user, model_id, model_name)
@@ -492,18 +479,14 @@ class AdminDashboard(QMainWindow):
         api_tab = QWidget()
         self.tabs.addTab(api_tab, "API Keys")
         layout = QVBoxLayout(api_tab)
-
         api_key_label = QLabel("Set or Update External Model API Key:")
         layout.addWidget(api_key_label)
-
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setPlaceholderText("Enter new API key here")
         layout.addWidget(self.api_key_edit)
-
         save_api_button = QPushButton("Save API Key")
         save_api_button.clicked.connect(self.save_external_api_key)
         layout.addWidget(save_api_button)
-
         self.api_status_label = QLabel("")
         layout.addWidget(self.api_status_label)
 
@@ -512,7 +495,6 @@ class AdminDashboard(QMainWindow):
         if not new_key:
             QMessageBox.warning(self, "Warning", "API key cannot be empty.")
             return
-
         result = self.system.adminSetExternalAPIKey(self.admin_user, new_key)
         self.api_status_label.setText(result)
 
@@ -522,17 +504,15 @@ class AdminDashboard(QMainWindow):
         user_perm_tab = QWidget()
         self.tabs.addTab(user_perm_tab, "User Permissions")
         layout = QVBoxLayout(user_perm_tab)
-        
         # Search bar for users
         search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Enter username to search")
+        self.search_input.setPlaceholderText("Enter username or ID to search")
         search_button = QPushButton("Search")
         search_button.clicked.connect(self.search_users)
         search_layout.addWidget(self.search_input)
         search_layout.addWidget(search_button)
         layout.addLayout(search_layout)
-        
         # Table to display search results
         self.users_table = QTableWidget()
         self.users_table.setColumnCount(4)
@@ -542,51 +522,49 @@ class AdminDashboard(QMainWindow):
         self.users_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.users_table.cellClicked.connect(self.user_selected)
         layout.addWidget(self.users_table)
-        
         # Label to show selected user
         self.selected_user_label = QLabel("No user selected")
         layout.addWidget(self.selected_user_label)
-        
         # Area to display and edit permissions for the selected user
         self.permissions_scroll = QScrollArea()
         self.permissions_scroll.setWidgetResizable(True)
         self.permissions_container = QWidget()
+        # Set background color and padding for better visibility
+        self.permissions_container.setStyleSheet("background-color: #34495E; padding: 10px;")
         self.permissions_layout = QVBoxLayout(self.permissions_container)
         self.permissions_scroll.setWidget(self.permissions_container)
         layout.addWidget(self.permissions_scroll)
-        
         # Save button to update permissions
         save_button = QPushButton("Save Changes")
         save_button.clicked.connect(self.save_user_permissions)
         layout.addWidget(save_button, alignment=Qt.AlignRight)
-        
         self.user_perm_checkboxes = {}
         self.selected_user_id = None
 
     def search_users(self):
         query_str = self.search_input.text().strip()
-        try:
-            from databaseHandler import get_users_by_username
+        print(query_str)
+        if query_str.isdigit():
+            user_record = get_user_by_id(int(query_str))
+            if user_record:
+                users = [user_record]
+            else:
+                users = []
+        else:
             users = get_users_by_username(query_str)
-        except:
-            users = []
-
         self.users_table.setRowCount(len(users))
         for row_idx, user_rec in enumerate(users):
-            # Suppose user_rec = (id, username, fullname, department)
+            # Suppose user_rec = (id, username, fullname, department, ...)
             id_item = QTableWidgetItem(str(user_rec[0]))
             id_item.setForeground(QBrush(QColor("#ECF0F1")))
             self.users_table.setItem(row_idx, 0, id_item)
-
             name_item = QTableWidgetItem(user_rec[1])
             name_item.setForeground(QBrush(QColor("#ECF0F1")))
             self.users_table.setItem(row_idx, 1, name_item)
-
-            full_item = QTableWidgetItem(user_rec[2] if user_rec[2] else "")
+            full_item = QTableWidgetItem(user_rec[3] if user_rec[3] else "")
             full_item.setForeground(QBrush(QColor("#ECF0F1")))
             self.users_table.setItem(row_idx, 2, full_item)
-
-            dept_item = QTableWidgetItem(user_rec[3] if user_rec[3] else "")
+            dept_item = QTableWidgetItem(user_rec[4] if user_rec[4] else "")
             dept_item.setForeground(QBrush(QColor("#ECF0F1")))
             self.users_table.setItem(row_idx, 3, dept_item)
 
@@ -605,16 +583,13 @@ class AdminDashboard(QMainWindow):
             if widget:
                 widget.setParent(None)
         self.user_perm_checkboxes.clear()
-        
         try:
             from databaseHandler import get_all_permissions
             all_perms = get_all_permissions()
         except:
             all_perms = []
-        
         user_perms = self.system.getUserPermissions(user_id)
         user_perm_ids = set([perm[0] for perm in user_perms])
-        
         for perm in all_perms:
             checkbox = QCheckBox(f"{perm[1]}: {perm[2]}")
             # Force white text to ensure visibility
@@ -641,10 +616,8 @@ class AdminDashboard(QMainWindow):
         if self.selected_user_id is None:
             QMessageBox.warning(self, "Warning", "No user selected.")
             return
-        
         current_user_perms = self.system.getUserPermissions(self.selected_user_id)
         current_perm_ids = set([perm[0] for perm in current_user_perms])
-        
         for perm_id, checkbox in self.user_perm_checkboxes.items():
             if checkbox.isChecked() and perm_id not in current_perm_ids:
                 res = self.system.addPermissionToUser(self.admin_user, self.selected_user_id, perm_id)
@@ -652,7 +625,6 @@ class AdminDashboard(QMainWindow):
             elif not checkbox.isChecked() and perm_id in current_perm_ids:
                 res = self.system.removePermissionFromUser(self.admin_user, self.selected_user_id, perm_id)
                 print(res)
-
         QMessageBox.information(self, "Success", "User permissions updated.")
         self.load_user_permissions(self.selected_user_id)
 

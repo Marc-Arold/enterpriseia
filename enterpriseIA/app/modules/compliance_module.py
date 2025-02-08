@@ -1,7 +1,8 @@
 import datetime
 from databaseHandler import (
     get_connection,
-    insert_audit_log
+    insert_audit_log,
+    get_user_consent
 )
 
 class ComplianceModule:
@@ -17,16 +18,19 @@ class ComplianceModule:
         This example expects a 'consents' table or an added column in 'users'.
         Return True if the user has not revoked consent.
         """
-        conn = get_connection()
-        cursor = conn.cursor()
+        # conn = get_connection()
+        # cursor = conn.cursor()
       
-        cursor.execute("SELECT has_consented FROM consents WHERE user_id = %s", (user_id,))
-        row = cursor.fetchone()
-        conn.close()
-
+        # cursor.execute("SELECT has_consented FROM consents WHERE user_id = %s", (user_id,))
+        # row = cursor.fetchone()
+        # conn.close()
+        row = get_user_consent(user_id=user_id)
+        print("user ID", user_id)
+        print("row",row)
         if not row:
             return False
-        return bool(row[0])
+        # return bool(row[0])
+        return row[1]==1
 
     def enforce_data_retention(self):
         """

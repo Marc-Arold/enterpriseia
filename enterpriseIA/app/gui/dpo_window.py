@@ -1,22 +1,19 @@
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QTextEdit, QMessageBox, QFileDialog,
-    QTreeWidget, QTreeWidgetItem, QHeaderView, QGroupBox, QFormLayout
+    QTreeWidget, QTreeWidgetItem, QHeaderView, QGroupBox, QFormLayout,
+    QDateEdit, QComboBox, QCheckBox
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont, QPalette, QColor
-
+from PySide6.QtCore import Qt, QDate
+from PySide6.QtGui import QFont, QPalette, QColor, QIcon
 # Import your real System from 'system.py'
-# Adjust the path as needed, for example:
-# from system import System
-# or from backend.system import System
 from ..system import System
 
 # ----------------------------------------------------------------
-# Example placeholder user class. Replace or remove once you have
-# a real login/auth mechanism returning an authenticated user.
+# Placeholder user class. Replace or remove once you have a real
+# login/auth mechanism returning an authenticated user.
 # ----------------------------------------------------------------
 class DummyUser:
     def __init__(self, user_id=1, username="admin"):
@@ -37,6 +34,8 @@ class DPODashboard(QMainWindow):
         self.setWindowTitle("DPO Dashboard")
         self.setGeometry(100, 100, 1200, 800)
         self.setMinimumSize(1000, 700)
+        # Set the window icon using the helper method to compute its absolute path
+        self.setWindowIcon(self._get_icon("app_icon"))
 
         self.apply_dark_theme()
         self.init_ui()
@@ -77,7 +76,7 @@ class DPODashboard(QMainWindow):
                 background-color: #16A085;
                 color: #ECF0F1;
             }
-            QLineEdit, QTextEdit, QComboBox {
+            QLineEdit, QTextEdit, QComboBox, QDateEdit {
                 background-color: #34495E;
                 color: #ECF0F1;
                 border: 1px solid #1ABC9C;
@@ -85,7 +84,7 @@ class DPODashboard(QMainWindow):
                 padding: 5px;
                 font-size: 14px;
             }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
+            QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QDateEdit:focus {
                 border: 1px solid #1ABC9C;
             }
             QTreeWidget {
@@ -124,7 +123,6 @@ class DPODashboard(QMainWindow):
     def init_ui(self):
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-
         main_layout = QVBoxLayout()
         central_widget.setLayout(main_layout)
 
@@ -133,8 +131,9 @@ class DPODashboard(QMainWindow):
         title_label.setFont(QFont("Helvetica", 20, QFont.Bold))
         title_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(title_label)
+        main_layout.addSpacing(10)
 
-        # Create tabs
+        # Create Tabs
         self.tabs = QTabWidget()
         main_layout.addWidget(self.tabs)
 
@@ -147,7 +146,6 @@ class DPODashboard(QMainWindow):
     def create_view_logs_tab(self):
         view_logs_tab = QWidget()
         self.tabs.addTab(view_logs_tab, "View Audit Logs")
-
         layout = QVBoxLayout()
         view_logs_tab.setLayout(layout)
 
@@ -157,56 +155,88 @@ class DPODashboard(QMainWindow):
         filters_group.setLayout(filters_layout)
         layout.addWidget(filters_group)
 
-        self.start_date_edit = QLineEdit()
-        self.start_date_edit.setPlaceholderText("YYYY-MM-DD")
+        # Date Filter Checkbox and QDateEdits
+        self.date_filter_checkbox = QCheckBox("Filter by Date")
+        self.date_filter_checkbox.setToolTip("Check to enable date filtering")
+        self.date_filter_checkbox.stateChanged.connect(self.toggle_date_filters)
+        filters_layout.addRow(self.date_filter_checkbox)
+
+        self.start_date_edit = QDateEdit()
+        self.start_date_edit.setCalendarPopup(True)
+        self.start_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.start_date_edit.setToolTip("Select the start date for filtering")
+        self.start_date_edit.setEnabled(False)
         filters_layout.addRow(QLabel("Start Date:"), self.start_date_edit)
 
-        self.end_date_edit = QLineEdit()
-        self.end_date_edit.setPlaceholderText("YYYY-MM-DD")
+        self.end_date_edit = QDateEdit()
+        self.end_date_edit.setCalendarPopup(True)
+        self.end_date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.end_date_edit.setToolTip("Select the end date for filtering")
+        self.end_date_edit.setEnabled(False)
         filters_layout.addRow(QLabel("End Date:"), self.end_date_edit)
 
-        self.action_combo = QLineEdit()
-        self.action_combo.setPlaceholderText("Enter Action Type or 'All'")
+        # Action Type Filter using QComboBox
+        self.action_combo = QComboBox()
+        self.action_combo.addItem("All")
+        # Optionally populate with specific actions:
+        # self.action_combo.addItems(self.system.getAvailableActions())
+        self.action_combo.setToolTip("Select an action type to filter, or choose 'All'")
         filters_layout.addRow(QLabel("Action Type:"), self.action_combo)
 
-        self.user_combo = QLineEdit()
-        self.user_combo.setPlaceholderText("Enter User or 'All'")
+        # User Filter using QComboBox
+        self.user_combo = QComboBox()
+        self.user_combo.addItem("All")
+        # Optionally populate with specific users:
+        # self.user_combo.addItems(self.system.getAvailableUsers())
+        self.user_combo.setToolTip("Select a user to filter, or choose 'All'")
         filters_layout.addRow(QLabel("User:"), self.user_combo)
 
+        # Keyword filter using QLineEdit
         self.keyword_entry = QLineEdit()
         self.keyword_entry.setPlaceholderText("Enter Keyword")
+        self.keyword_entry.setToolTip("Type a keyword to search within log details")
         filters_layout.addRow(QLabel("Keyword:"), self.keyword_entry)
 
-        # Buttons Layout
+        # Filter Buttons
         buttons_layout = QHBoxLayout()
         apply_filter_btn = QPushButton("Apply Filters")
+        apply_filter_btn.setToolTip("Apply selected filters")
         apply_filter_btn.clicked.connect(self.apply_filters)
         reset_filter_btn = QPushButton("Reset Filters")
+        reset_filter_btn.setToolTip("Reset all filters to default")
         reset_filter_btn.clicked.connect(self.reset_filters)
         buttons_layout.addWidget(apply_filter_btn)
         buttons_layout.addWidget(reset_filter_btn)
         layout.addLayout(buttons_layout)
+        layout.addSpacing(10)
 
-        # TreeWidget for logs
+        # Logs TreeWidget
         self.logs_tree = QTreeWidget()
         self.logs_tree.setColumnCount(5)
         self.logs_tree.setHeaderLabels(["ID", "Timestamp", "User", "Action", "Details"])
         self.logs_tree.header().setSectionResizeMode(QHeaderView.Stretch)
+        self.logs_tree.setToolTip("Double-click a log entry for detailed view")
+        self.logs_tree.itemDoubleClicked.connect(self.log_item_double_clicked)
         layout.addWidget(self.logs_tree)
 
         # Export Button
         export_btn = QPushButton("Export Logs to CSV")
+        export_btn.setToolTip("Export current logs view to a CSV file")
         export_btn.clicked.connect(self.export_logs)
         layout.addWidget(export_btn, alignment=Qt.AlignRight)
 
-        # Load logs initially
+        # Initial load of logs
         logs = self.system.getAllAuditLogs(self.current_user)
         if isinstance(logs, list):
-            # Check if user lacks permission
             if logs and isinstance(logs[0], str) and "Permission denied" in logs[0]:
                 QMessageBox.warning(self, "Access Denied", logs[0])
             else:
                 self.display_logs(logs)
+
+    def toggle_date_filters(self, state):
+        enabled = state == Qt.Checked
+        self.start_date_edit.setEnabled(enabled)
+        self.end_date_edit.setEnabled(enabled)
 
     def apply_filters(self):
         all_logs = self.system.getAllAuditLogs(self.current_user)
@@ -214,52 +244,48 @@ class DPODashboard(QMainWindow):
             QMessageBox.warning(self, "Access Denied", "You do not have permission to view logs.")
             return
 
-        start_date_str = self.start_date_edit.text().strip()
-        end_date_str = self.end_date_edit.text().strip()
-        action_str = self.action_combo.text().strip()
-        user_str = self.user_combo.text().strip()
-        keyword_str = self.keyword_entry.text().strip()
-
-        # Parse dates
+        # Date filtering: only if checkbox is checked
         start_date = None
         end_date = None
-        try:
-            if start_date_str:
-                start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
-            if end_date_str:
-                # End of that day
-                end_date = datetime.strptime(end_date_str, "%Y-%m-%d") + timedelta(days=1) - timedelta(seconds=1)
-        except ValueError:
-            QMessageBox.warning(self, "Invalid Date", "Please enter dates in YYYY-MM-DD format.")
-            return
+        if self.date_filter_checkbox.isChecked():
+            start_qdate = self.start_date_edit.date()
+            end_qdate = self.end_date_edit.date()
+            start_date = datetime(start_qdate.year(), start_qdate.month(), start_qdate.day(), 0, 0, 0)
+            end_date = datetime(end_qdate.year(), end_qdate.month(), end_qdate.day(), 23, 59, 59)
 
-        # Filter in memory
+        action_filter = self.action_combo.currentText().strip().lower()
+        user_filter = self.user_combo.currentText().strip().lower()
+        keyword_filter = self.keyword_entry.text().strip().lower()
+
         filtered_logs = []
         for log in all_logs:
-            # Convert "YYYY-MM-DD HH:MM:SS" to datetime
-            log_dt = None
-            if log['timestamp']:
+            try:
                 log_dt = datetime.strptime(log['timestamp'], "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                continue
 
-            if start_date and log_dt and log_dt < start_date:
+            if start_date and log_dt < start_date:
                 continue
-            if end_date and log_dt and log_dt > end_date:
+            if end_date and log_dt > end_date:
                 continue
-            if action_str.lower() != "all" and action_str and log['action'] != action_str:
+            if action_filter != "all" and log['action'].lower() != action_filter:
                 continue
-            if user_str.lower() != "all" and user_str and log['user'] != user_str:
+            if user_filter != "all" and log['user'].lower() != user_filter:
                 continue
-            if keyword_str and keyword_str.lower() not in log['details'].lower():
+            if keyword_filter and keyword_filter not in log['details'].lower():
                 continue
+
             filtered_logs.append(log)
 
         self.display_logs(filtered_logs)
 
     def reset_filters(self):
-        self.start_date_edit.clear()
-        self.end_date_edit.clear()
-        self.action_combo.clear()
-        self.user_combo.clear()
+        self.date_filter_checkbox.setChecked(False)
+        today = QDate.currentDate()
+        self.start_date_edit.setDate(today)
+        self.end_date_edit.setDate(today)
+        self.action_combo.setCurrentIndex(0)
+        self.user_combo.setCurrentIndex(0)
         self.keyword_entry.clear()
 
         logs = self.system.getAllAuditLogs(self.current_user)
@@ -280,6 +306,16 @@ class DPODashboard(QMainWindow):
                 log['details']
             ])
             self.logs_tree.addTopLevelItem(item)
+
+    def log_item_double_clicked(self, item, column):
+        details = (
+            f"<b>Log ID:</b> {item.text(0)}<br>"
+            f"<b>Timestamp:</b> {item.text(1)}<br>"
+            f"<b>User:</b> {item.text(2)}<br>"
+            f"<b>Action:</b> {item.text(3)}<br>"
+            f"<b>Details:</b> {item.text(4)}"
+        )
+        QMessageBox.information(self, "Log Details", details)
 
     def export_logs(self):
         logs = []
@@ -304,7 +340,7 @@ class DPODashboard(QMainWindow):
             "CSV Files (*.csv);;All Files (*)"
         )
         if not file_path:
-            return  # User cancelled
+            return
 
         try:
             import csv
@@ -330,10 +366,10 @@ class DPODashboard(QMainWindow):
     def create_audit_actions_tab(self):
         audit_actions_tab = QWidget()
         self.tabs.addTab(audit_actions_tab, "Audit Actions")
-
         layout = QVBoxLayout()
         audit_actions_tab.setLayout(layout)
 
+        # Detailed Log Entry Group
         detailed_log_group = QGroupBox("View Detailed Log Entry")
         detailed_log_layout = QFormLayout()
         detailed_log_group.setLayout(detailed_log_layout)
@@ -341,23 +377,29 @@ class DPODashboard(QMainWindow):
 
         self.log_id_entry = QLineEdit()
         self.log_id_entry.setPlaceholderText("Enter Log ID")
+        self.log_id_entry.setToolTip("Type the Log ID you wish to view")
         detailed_log_layout.addRow(QLabel("Log ID:"), self.log_id_entry)
 
         view_details_btn = QPushButton("View Details")
+        view_details_btn.setToolTip("Click to view details for the specified Log ID")
         view_details_btn.clicked.connect(self.view_log_details)
         detailed_log_layout.addRow(view_details_btn)
 
         self.detail_text = QTextEdit()
         self.detail_text.setReadOnly(True)
         self.detail_text.setFont(QFont("Helvetica", 12))
+        self.detail_text.setToolTip("Detailed log information will be displayed here")
         layout.addWidget(self.detail_text)
+        layout.addSpacing(10)
 
+        # Generate Audit Report Group
         generate_report_group = QGroupBox("Generate Audit Report")
         generate_report_layout = QHBoxLayout()
         generate_report_group.setLayout(generate_report_layout)
         layout.addWidget(generate_report_group)
 
         generate_report_btn = QPushButton("Generate Report")
+        generate_report_btn.setToolTip("Generate an audit report based on available logs")
         generate_report_btn.clicked.connect(self.generate_audit_report)
         generate_report_layout.addWidget(generate_report_btn)
 
@@ -420,6 +462,19 @@ class DPODashboard(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to generate report: {str(e)}")
 
+    # ----------------------------------------------------------------
+    # Helper Method for Icons
+    def _get_icon(self, name: str) -> QIcon:
+        """
+        Compute the absolute path for the icon relative to this file
+        and return a QIcon object.
+        """
+        import os
+        icon_path = os.path.join(os.path.dirname(__file__), "icons", f"{name}.png")
+        if os.path.exists(icon_path):
+            return QIcon(icon_path)
+        return QIcon.fromTheme(name)
+
 # ----------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------
@@ -432,7 +487,7 @@ def main():
         # retention_days=90
     )
 
-    # Example user object with admin-like privileges. Replace with your real user from a login system.
+    # Example user object. Replace with your real user from a login system.
     current_user = DummyUser()
 
     dashboard = DPODashboard(system=real_system, current_user=current_user)
